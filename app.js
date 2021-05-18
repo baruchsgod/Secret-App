@@ -48,7 +48,8 @@ mongoose.set('useCreateIndex', true);
 const userSchema = new mongoose.Schema({
   email:String,
   password:String,
-  googleId:String
+  googleId:String,
+  secret:String
 });
 
 userSchema.plugin(passportLocalMongoose);
@@ -105,7 +106,16 @@ app.get("/register", function(req,res){
 });
 
 app.get("/secrets", middleware.requireLogin ,function(req, res, next){
-    res.status(200).render("secrets");
+  User.find({"secret":{$ne:null}}, function(err, foundUser){
+    if (err) {
+      console.log(err);
+    }else{
+      if (foundUser) {
+        res.status(200).render("secrets", {secrets:foundUser});
+      }
+    }
+  })
+
 });
 
 app.get("/logout", function(req,res){
@@ -148,7 +158,7 @@ app.post("/register", function(req,res){
 
 });
 
-app.post("/login", function(req,res){
+app.post("/login",function(req,res){
   // const username = req.body.username;
 
 
@@ -195,6 +205,32 @@ app.post("/login", function(req,res){
     }
   });
 
+});
+
+app.get("/submit", function(req,res){
+  if (req.isAuthenticated()) {
+    res.render("submit")
+  }else{
+    res.redirect("/login");
+  }
+});
+
+app.post("/submit", function(req,res){
+  const submittedSecret = req.body.secret;
+
+  const user = req.user.id;
+
+  User.findById(user,function(err,foundUser){
+    if (err) {
+      console.log(err);
+    }else{
+      foundUser.secret = submittedSecret;
+
+      foundUser.save(function(){
+        res.redirect("/secrets");
+      })
+    }
+  })
 });
 
 app.listen("3000", function(){
